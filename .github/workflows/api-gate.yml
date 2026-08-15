@@ -1,0 +1,30 @@
+# Measures what a pull request does to the public contract of a package that ships 165 entry
+# points and four native libraries it compiles itself.
+#
+# Native coherence runs inside the gate rather than beside it, because the agent that opens
+# these pull requests runs the generator and never the meson build: regenerating against a
+# newer header leaves the old libraries in place, which reads as purely additive — new
+# symbols, none removed — while every one of those new symbols is missing from the binaries.
+#
+# auto-merge stays off.
+
+name: API Gate
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  api:
+    uses: EvergineTeam/Evergine.Bindings/.github/workflows/binding-api-gate.yml@v1
+    with:
+      binding-project: "Evergine.Bindings.ThorVG/Evergine.Bindings.ThorVG.csproj"
+      auto-merge: false
+      native-coherence: true
+      # thorvg_capi.h reports its own version through these three macros, which the generator
+      # emits as consts. Their values change on every release, so left alone the verdict would
+      # be "breaking" every time — which is the same as having no verdict.
+      exempt-symbols: |
+        TVG_VERSION_MAJOR
+        TVG_VERSION_MINOR
+        TVG_VERSION_MICRO

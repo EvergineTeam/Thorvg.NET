@@ -1,0 +1,68 @@
+# Tracked CD: resolve the ThorVG release the manifest follows, compile the libraries for that
+# same tag, then regenerate, pack and publish.
+#
+# ThorVG publishes no binaries — every release carries a single source tarball — so the
+# libraries are built here rather than downloaded, and they must come from the tag the header
+# came from.
+name: CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip-assets-publishing:
+        description: 'Skip assets publishing'
+        required: false
+        type: boolean
+        default: false
+      force-publish:
+        description: 'Publish even when the generated code is unchanged'
+        required: false
+        type: boolean
+        default: false
+      force-natives:
+        description: 'Rebuild the native libraries even when the release has not moved'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  resolve:
+    uses: EvergineTeam/Evergine.Bindings/.github/workflows/binding-resolve-upstream.yml@v1
+
+  natives:
+    needs: resolve
+    # Four platform builds is not something to spend on a maybe, hence resolving first and
+    # asking.
+    if: needs.resolve.outputs.ref_moved == 'true' || inputs.force-natives
+    uses: ./.github/workflows/thorvg-meson.yml
+    with:
+      ref: ${{ needs.resolve.outputs.resolved_ref }}
+
+  cd:
+    needs: [resolve, natives]
+    # `natives` is skipped whenever the release has not moved, and a skipped dependency would
+    # otherwise take this job with it. The run still has to reach the CD so it can report the
+    # no-op.
+    if: always() && needs.resolve.result == 'success' && needs.natives.result != 'failure' && !cancelled()
+    uses: EvergineTeam/Evergine.Bindings/.github/workflows/binding-tracked-cd.yml@v1
+    with:
+      generator-project: "ThorvgGen/ThorvgGen.csproj"
+      generator-name: "ThorvgGen"
+      binding-project: "Evergine.Bindings.ThorVG/Evergine.Bindings.ThorVG.csproj"
+      target-framework: "net10.0"
+      dotnet-version: "10.x"
+      nuget-version: "6.x"
+      runtime-identifier: "linux-x64"
+      build-configuration: "Release"
+      revision: ${{ github.run_number }}
+      # Asked for only when the job actually produced them: requesting artifacts that were
+      # never uploaded fails the download and takes the publish with it.
+      natives-artifact-pattern: ${{ needs.natives.result == 'success' && 'natives-*' || '' }}
+      force-publish: ${{ inputs.force-publish || false }}
+      publish-enabled: ${{ !inputs.skip-assets-publishing }}
+      enable-email-notifications: true
+    secrets:
+      NUGET_UPLOAD_TOKEN: ${{ secrets.EVERGINE_NUGETORG_TOKEN }}
+      WAVE_SENDGRID_TOKEN: ${{ secrets.WAVE_SENDGRID_TOKEN }}
+      EVERGINE_EMAILREPORT_LIST: ${{ secrets.EVERGINE_EMAILREPORT_LIST }}
+      EVERGINE_EMAIL: ${{ secrets.EVERGINE_EMAIL }}
