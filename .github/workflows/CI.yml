@@ -1,0 +1,36 @@
+# Binding CI - Simple Template
+name: CI
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish-artifacts:
+        description: 'Publish artifacts'
+        required: false
+        type: boolean
+        default: false
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  ci:
+    uses: EvergineTeam/Evergine.Bindings/.github/workflows/binding-common-ci.yml@v1
+    with:
+      generator-project: "ThorvgGen/ThorvgGen.csproj"
+      generator-name: "ThorvgGen"
+      binding-project: "Evergine.Bindings.ThorVG/Evergine.Bindings.ThorVG.csproj"
+      target-framework: "net10.0"
+      dotnet-version: "10.x"
+      runtime-identifier: "linux-x64"
+      build-configuration: "Release"
+      nuget-artifacts: ${{ inputs.publish-artifacts || false }}
+      revision: ${{ github.run_number }}
+
+  # The managed layer is generated from a vendored header while the libraries are compiled
+  # separately, and both halves build no matter how far apart they drift. This is what
+  # notices: every P/Invoke has to resolve in at least one shipped library, and each library
+  # has to match the architecture its RID promises.
+  coherence:
+    uses: EvergineTeam/Evergine.Bindings/.github/workflows/binding-native-coherence.yml@v1

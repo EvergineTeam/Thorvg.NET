@@ -1,0 +1,72 @@
+# Binding manifest — see https://github.com/EvergineTeam/Evergine.Bindings
+# Schema: https://github.com/EvergineTeam/Evergine.Bindings/blob/main/binding.schema.json
+toolbox: 1.29.0
+
+package:
+  id: Evergine.Bindings.ThorVG
+  project: Evergine.Bindings.ThorVG/Evergine.Bindings.ThorVG.csproj
+  target-framework: net10.0
+  runtime-identifier: linux-x64
+
+upstream:
+  kind: git-tree
+  language: cpp
+  project: https://github.com/thorvg/thorvg
+  version-from: git-release
+
+  release:
+    # Tagged releases, not main. This binding ships native libraries it compiles itself, and
+    # the header and those libraries have to come from one revision of ThorVG; a branch would
+    # move the header underneath libraries built from something else. `current` is rewritten
+    # by binding-fetch-upstream when it brings in a newer release, which makes this the one
+    # place the version lives.
+    track: stable
+    current: v1.1.0
+
+  # One source: thorvg_capi.h is self-contained, including only <stdint.h> and <stdbool.h>.
+  # The C++ API in inc/thorvg.h is deliberately not vendored — it is not bindable by P/Invoke.
+  sources:
+    - repo: thorvg/thorvg
+      remote-path: src/bindings/capi/thorvg_capi.h
+      path: ThorvgGen/Headers/thorvg_capi.h
+      format: c-header
+
+generator:
+  project: ThorvgGen/ThorvgGen.csproj
+  name: ThorvgGen
+  output:
+    - Evergine.Bindings.ThorVG/Generated
+
+# NOTE — ThorvgGen/Headers/libc-stubs/ is hand-written and sits beside the vendored header.
+# It must survive a fetch, which it does: the source above names a single file, so nothing
+# else under Headers/ is touched.
+#
+# The stubs stand in for <stdint.h> and <stdbool.h>, the only two headers thorvg_capi.h
+# includes. libclang ships no libc and finds no include paths at all on a Linux runner, so
+# without them the parse dies there while succeeding on Windows, where the Windows SDK happens
+# to be on the search path. stdbool.h is deliberately EMPTY: CppAst drives libclang in C++
+# mode, where bool is a keyword, and the C spelling `#define bool _Bool` breaks the parse
+# rather than helping it. Do not "complete" it.
+#
+# NOTE — this package ships native libraries under Evergine.Bindings.ThorVG/runtimes, and
+# ThorVG publishes none: every release carries a single source tarball. thorvg-meson.yml
+# builds all four RIDs from the resolved tag, and the CD runs it before the header is
+# committed. A header bump is only valid together with that rebuild — P/Invoke binds late, so
+# a mismatched package compiles, passes CI, publishes, and then throws in the consumer's
+# application. Do not bump the header by hand.
+#
+# NOTE — `-Dbindings=capi` is off by default in ThorVG's meson options, and without it the
+# library builds perfectly and exports not one tvg_* symbol. That is why thorvg-meson.yml
+# checks the output for tvg_engine_init instead of trusting a green build. If the natives ever
+# come back with no C API, this is the first thing to look at.
+#
+# NOTE — the libraries are renamed on staging. ThorVG names its target after the major
+# version (thorvg-1.dll, libthorvg-1.so.1, libthorvg-1.1.dylib) and on Unix the plain name is
+# a symlink, which does not survive NuGet packaging. The workflow copies the real file as
+# thorvg.dll / libthorvg.so / libthorvg.dylib so DllImport("thorvg") keeps resolving when
+# ThorVG goes to 2.x.
+#
+# NOTE — the engines are CPU raster only (-Dengines=cpu). thorvg_capi.h declares the GL and
+# WebGPU canvas functions unconditionally, so they are part of the generated surface and
+# return TVG_RESULT_NOT_SUPPORTED at run time. Enabling those engines is a build-flag change
+# in thorvg-meson.yml and does not alter the managed API.
