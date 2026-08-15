@@ -75,8 +75,12 @@ jobs:
       # library builds perfectly and exports not one tvg_* symbol.
       # -Dextra drops openmp, which would otherwise pull a libomp/vcomp runtime alongside the
       # library that the NuGet does not ship.
-      - name: Configure and build
-        if: inputs.only-rid == '' || inputs.only-rid == matrix.rid
+      #
+      # Split by platform because bash on the Windows runner is Git bash, and it puts
+      # C:\Program Files\Git\usr\bin ahead of the MSVC toolchain — meson then finds GNU link.exe
+      # instead of MSVC's and refuses to configure.
+      - name: Configure and build (Unix)
+        if: (inputs.only-rid == '' || inputs.only-rid == matrix.rid) && !startsWith(matrix.rid, 'win-')
         shell: bash
         run: |
           set -euo pipefail
@@ -93,6 +97,15 @@ jobs:
             -Dtools='' \
             -Dtests=false
           meson compile -C build
+
+      - name: Configure and build (Windows)
+        if: (inputs.only-rid == '' || inputs.only-rid == matrix.rid) && startsWith(matrix.rid, 'win-')
+        shell: pwsh
+        run: |
+          meson setup build --buildtype=release -Ddefault_library=shared -Dbindings=capi -Dengines=cpu -Dloaders=all -Dsavers=all -Dextra=lottie_exp -Dstatic=false -Dlog=false -Dtools='' -Dtests=false
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          meson compile -C build
+          if ($LASTEXITCODE -ne 0) { exit 1 }
 
       # The library is named after the major version — thorvg-1.dll, libthorvg-1.so.1,
       # libthorvg-1.1.dylib — and on Unix the plain name is a symlink, which does not survive
@@ -128,12 +141,21 @@ jobs:
           echo "$lib: $size bytes"
           [ "$size" -gt 300000 ] || { echo "::error::$lib is only $size bytes"; exit 1; }
 
+          # The symbol table is captured before it is searched rather than piped into grep -q:
+          # under `set -o pipefail`, grep -q exits at the first match, nm dies of SIGPIPE, and
+          # the pipeline reports failure precisely when the symbol WAS found.
           case "${{ matrix.rid }}" in
-            win-*)   strings -a "$lib" | grep -q '^tvg_engine_init$' || { echo "::error::tvg_engine_init not found in $lib"; exit 1; } ;;
-            linux-*) nm -D --defined-only "$lib" | grep -q ' tvg_engine_init$' || { echo "::error::tvg_engine_init not exported by $lib"; exit 1; } ;;
-            osx-*)   nm -gU "$lib" | grep -q '_tvg_engine_init$' || { echo "::error::tvg_engine_init not exported by $lib"; exit 1; } ;;
+            linux-*) symbols=$(nm -D --defined-only "$lib" || true) ;;
+            osx-*)   symbols=$(nm -gU "$lib" || true) ;;
+            # No dumpbin under bash and no strings on the Windows image; an export name is
+            # plain ASCII in the export table, so reading the file as text finds it.
+            win-*)   symbols=$(grep -a -o 'tvg_engine_init' "$lib" || true) ;;
           esac
-          echo "tvg_engine_init is exported."
+
+          case "$symbols" in
+            *tvg_engine_init*) echo "tvg_engine_init is exported." ;;
+            *) echo "::error::tvg_engine_init is not exported by $lib -- was -Dbindings=capi lost?"; exit 1 ;;
+          esac
 
       - name: Upload
         if: inputs.only-rid == '' || inputs.only-rid == matrix.rid
