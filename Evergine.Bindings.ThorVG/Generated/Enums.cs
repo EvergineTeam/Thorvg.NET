@@ -1,0 +1,131 @@
+using System;
+
+namespace Evergine.Bindings.ThorVG
+{
+	/// <summary>
+	/// All ThorVG APIs could potentially return one of the values in the list.
+	/// Please note that some APIs may additionally specify the reasons that trigger their return values.
+	/// </summary>
+	public enum Tvg_Result
+	{
+		TVG_RESULT_SUCCESS = 0,
+		TVG_RESULT_INVALID_ARGUMENT = 1,
+		TVG_RESULT_INSUFFICIENT_CONDITION = 2,
+		TVG_RESULT_FAILED_ALLOCATION = 3,
+		TVG_RESULT_MEMORY_CORRUPTION = 4,
+		TVG_RESULT_NOT_SUPPORTED = 5,
+		TVG_RESULT_UNKNOWN = 255,
+	}
+
+	public enum Tvg_Colorspace
+	{
+		TVG_COLORSPACE_ABGR8888 = 0,
+		TVG_COLORSPACE_ARGB8888 = 1,
+		TVG_COLORSPACE_ABGR8888S = 2,
+		TVG_COLORSPACE_ARGB8888S = 3,
+		TVG_COLORSPACE_GRAYSCALE8 = 4,
+		TVG_COLORSPACE_UNKNOWN = 255,
+	}
+
+	public enum Tvg_Engine_Option
+	{
+		TVG_ENGINE_OPTION_NONE = 0,
+		TVG_ENGINE_OPTION_DEFAULT = 1,
+		TVG_ENGINE_OPTION_SMART_RENDER = 2,
+		TVG_ENGINE_OPTION_ALIASED = 4,
+	}
+
+	public enum Tvg_Mask_Method
+	{
+		TVG_MASK_METHOD_NONE = 0,
+		TVG_MASK_METHOD_ALPHA = 1,
+		TVG_MASK_METHOD_INVERSE_ALPHA = 2,
+		TVG_MASK_METHOD_LUMA = 3,
+		TVG_MASK_METHOD_INVERSE_LUMA = 4,
+		TVG_MASK_METHOD_ADD = 5,
+		TVG_MASK_METHOD_SUBTRACT = 6,
+		TVG_MASK_METHOD_INTERSECT = 7,
+		TVG_MASK_METHOD_DIFFERENCE = 8,
+		TVG_MASK_METHOD_LIGHTEN = 9,
+		TVG_MASK_METHOD_DARKEN = 10,
+	}
+
+	public enum Tvg_Blend_Method
+	{
+		TVG_BLEND_METHOD_NORMAL = 0,
+		TVG_BLEND_METHOD_MULTIPLY = 1,
+		TVG_BLEND_METHOD_SCREEN = 2,
+		TVG_BLEND_METHOD_OVERLAY = 3,
+		TVG_BLEND_METHOD_DARKEN = 4,
+		TVG_BLEND_METHOD_LIGHTEN = 5,
+		TVG_BLEND_METHOD_COLORDODGE = 6,
+		TVG_BLEND_METHOD_COLORBURN = 7,
+		TVG_BLEND_METHOD_HARDLIGHT = 8,
+		TVG_BLEND_METHOD_SOFTLIGHT = 9,
+		TVG_BLEND_METHOD_DIFFERENCE = 10,
+		TVG_BLEND_METHOD_EXCLUSION = 11,
+		TVG_BLEND_METHOD_HUE = 12,
+		TVG_BLEND_METHOD_SATURATION = 13,
+		TVG_BLEND_METHOD_COLOR = 14,
+		TVG_BLEND_METHOD_LUMINOSITY = 15,
+		TVG_BLEND_METHOD_ADD = 16,
+		TVG_BLEND_METHOD_COMPOSITION = 255,
+	}
+
+	/// <summary>
+	/// ThorVG's drawing objects can return object type values, allowing you to identify the specific type of each object.
+	/// </summary>
+	public enum Tvg_Type
+	{
+		TVG_TYPE_UNDEF = 0,
+		TVG_TYPE_SHAPE = 1,
+		TVG_TYPE_SCENE = 2,
+		TVG_TYPE_PICTURE = 3,
+		TVG_TYPE_TEXT = 4,
+		TVG_TYPE_LINEAR_GRAD = 10,
+		TVG_TYPE_RADIAL_GRAD = 11,
+	}
+
+	public enum Tvg_Stroke_Cap
+	{
+		TVG_STROKE_CAP_BUTT = 0,
+		TVG_STROKE_CAP_ROUND = 1,
+		TVG_STROKE_CAP_SQUARE = 2,
+	}
+
+	public enum Tvg_Stroke_Join
+	{
+		TVG_STROKE_JOIN_MITER = 0,
+		TVG_STROKE_JOIN_ROUND = 1,
+		TVG_STROKE_JOIN_BEVEL = 2,
+	}
+
+	public enum Tvg_Stroke_Fill
+	{
+		TVG_STROKE_FILL_PAD = 0,
+		TVG_STROKE_FILL_REFLECT = 1,
+		TVG_STROKE_FILL_REPEAT = 2,
+	}
+
+	public enum Tvg_Fill_Rule
+	{
+		TVG_FILL_RULE_NON_ZERO = 0,
+		TVG_FILL_RULE_EVEN_ODD = 1,
+	}
+
+	public enum Tvg_Text_Wrap
+	{
+		TVG_TEXT_WRAP_NONE = 0,
+		TVG_TEXT_WRAP_CHARACTER = 1,
+		TVG_TEXT_WRAP_WORD = 2,
+		TVG_TEXT_WRAP_SMART = 3,
+		TVG_TEXT_WRAP_ELLIPSIS = 4,
+		TVG_TEXT_WRAP_HYPHENATION = 5,
+	}
+
+	public enum Tvg_Filter_Method
+	{
+		TVG_FILTER_METHOD_BILINEAR = 0,
+		TVG_FILTER_METHOD_NEAREST = 1,
+	}
+}
