@@ -40,6 +40,10 @@ env:
   # decoders over system ones, which is what keeps these libraries free of external deps.
   # -Dextra drops openmp, which would otherwise pull a libomp/vcomp runtime the NuGet does not
   # ship. Linkage is chosen separately, with --default-library.
+  #
+  # No -Dtools here. Its default is already the empty array, and passing -Dtools='' through an
+  # environment variable hands meson the two quote characters as part of the value, which it
+  # rejects as not being one of the allowed choices.
   TVG_COMMON: >-
     --buildtype=release
     -Dbindings=capi
@@ -49,7 +53,6 @@ env:
     -Dstatic=true
     -Dextra=lottie_exp
     -Dlog=false
-    -Dtools=''
     -Dtests=false
 
 jobs:
