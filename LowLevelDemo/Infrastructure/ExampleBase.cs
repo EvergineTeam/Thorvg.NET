@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Evergine.Bindings.ThorVG;
 
@@ -70,19 +71,21 @@ namespace LowLevelDemo.Infrastructure
 			return root;
 		}
 
-		/// <summary>Loads the bundled Public Sans once and returns its family name.</summary>
-		protected static string EnsureFont()
+		/// <summary>
+		/// Loads a bundled font once and returns the family name to pass to tvg_text_set_font —
+		/// which is the file name without its extension, not the name recorded inside the font.
+		/// </summary>
+		protected static string EnsureFont(string file = "PublicSans-Regular.ttf")
 		{
-			if (!fontLoaded)
+			if (loadedFonts.Add(file))
 			{
-				Check(ThorVG.tvg_font_load(Asset("PublicSans-Regular.ttf")), "tvg_font_load");
-				fontLoaded = true;
+				Check(ThorVG.tvg_font_load(Asset(file)), $"tvg_font_load({file})");
 			}
 
-			return "PublicSans-Regular";
+			return Path.GetFileNameWithoutExtension(file);
 		}
 
-		private static bool fontLoaded;
+		private static readonly HashSet<string> loadedFonts = new();
 
 		/// <summary>A one-line text label; the font is loaded on first use.</summary>
 		protected static void AddLabel(IntPtr scene, string content, float x, float y, float size, byte r, byte g, byte b)

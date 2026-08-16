@@ -10,3 +10,17 @@ From https://github.com/thorvg/thorvg.example (MIT):
 
 Public Sans is a typeface of the United States Web Design System, licensed
 under the SIL Open Font License 1.1 (https://github.com/uswds/public-sans).
+
+CJK subsets, for the Unicode column of the Text example:
+  NotoSansCJK.ttf   Noto Sans SC  (Chinese, Japanese kana and kanji, Greek, Cyrillic)
+  NotoSansKR.ttf    Noto Sans KR  (hangul)
+
+Both are Noto fonts under the SIL Open Font License 1.1
+(https://github.com/notofonts). The originals are 17 MB and 2.4 MB; what
+ships here is a static instance at weight 400 subset to the characters the
+example actually draws, produced with fontTools:
+
+  from fontTools.varLib import instancer   # NotoSansSC only, it is variable
+  pyftsubset <font> --text="<the example's strings>" --layout-features='*'
+
+Regenerating them is only necessary if the sample strings change.

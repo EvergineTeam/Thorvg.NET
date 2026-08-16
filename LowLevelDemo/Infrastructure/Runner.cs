@@ -50,6 +50,12 @@ namespace LowLevelDemo.Infrastructure
 		{
 			example = new T();
 
+			// Must precede the first window. Left unaware, the process reports its size in virtual
+			// pixels, the swapchain is created that small and Windows upscales the result — which
+			// softens every glyph and anti-aliased edge on any display above 100%. The whole point
+			// of these examples is rasterisation quality, so the canvas is presented 1:1 instead.
+			System.Windows.Forms.Application.SetHighDpiMode(System.Windows.Forms.HighDpiMode.PerMonitorV2);
+
 			NativeResolver.Install();
 
 			// ---- ThorVG ------------------------------------------------------------------------

@@ -15,7 +15,7 @@ namespace LowLevelDemo
 		static int Main()
 		{
 			//// ### README TILES ###
-			return Runner.Run<AntialiasedShapesExample>();
+			////return Runner.Run<AntialiasedShapesExample>();
 			////return Runner.Run<GradientFillingExample>();
 			////return Runner.Run<StrokingExample>();
 			////return Runner.Run<PathClippingExample>();
@@ -23,7 +23,7 @@ namespace LowLevelDemo
 			////return Runner.Run<MaskingExample>();
 			////return Runner.Run<BlendingExample>();
 			////return Runner.Run<TexturingExample>();
-			////return Runner.Run<TextExample>();
+			return Runner.Run<TextExample>();
 			////return Runner.Run<GaussianBlurExample>();
 			////return Runner.Run<DropShadowExample>();
 			////return Runner.Run<ColorReplacementExample>();
