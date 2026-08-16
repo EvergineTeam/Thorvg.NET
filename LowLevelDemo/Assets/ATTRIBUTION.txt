@@ -1,8 +1,5 @@
 Sample assets vendored for the LowLevelDemo examples.
 
-From https://github.com/thorvg/thorvg (v1.1.0, MIT):
-  animation.lot            (test/resources/test5.lot)
-
 From https://github.com/thorvg/thorvg.example (MIT):
   tiger.svg, cartman.svg, car.svg, thorvg-logo-clear.svg, circles1.svg   (res/svg)
   test.jpg, rawimage_200x300.raw                                          (res/image)
