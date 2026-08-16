@@ -177,15 +177,20 @@ jobs:
           set -euo pipefail
           native="out/Evergine.Bindings.ThorVG/runtimes/${{ matrix.rid }}/native"
           mkdir -p "$native"
+
+          # -type f is load-bearing: meson puts each target's objects in a sibling directory
+          # named after it, so `libthorvg-1.so.p` matches the same glob as the library and
+          # `find -print -quit` takes whichever the traversal reaches first. The Linux legs were
+          # passing on that ordering rather than on being right; Android was not.
           case "${{ matrix.rid }}" in
             win-*)
-              cp "$(find build -name 'thorvg*.dll' -print -quit)" "$native/thorvg.dll" ;;
+              cp "$(find build -type f -name 'thorvg*.dll' -print -quit)" "$native/thorvg.dll" ;;
             linux-*|android-*)
-              cp "$(readlink -f "$(find build -name 'libthorvg*.so*' -print -quit)")" "$native/libthorvg.so" ;;
+              cp "$(readlink -f "$(find build -type f -name 'libthorvg*.so*' -print -quit)")" "$native/libthorvg.so" ;;
             osx-*)
-              cp "$(readlink -f "$(find build -name 'libthorvg*.dylib' -print -quit)")" "$native/libthorvg.dylib" ;;
+              cp "$(readlink -f "$(find build -type f -name 'libthorvg*.dylib' -print -quit)")" "$native/libthorvg.dylib" ;;
             ios*)
-              cp "$(find build -name 'libthorvg*.a' -print -quit)" "$native/libthorvg.a" ;;
+              cp "$(find build -type f -name 'libthorvg*.a' -print -quit)" "$native/libthorvg.a" ;;
           esac
           find out -type f -exec ls -l {} \;
 
