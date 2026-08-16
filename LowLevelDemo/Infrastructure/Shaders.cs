@@ -1,4 +1,4 @@
-namespace LowLevelDemo
+namespace LowLevelDemo.Infrastructure
 {
 	public static class Shaders
 	{
