@@ -21,8 +21,13 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Lottie sample from thorvg/thorvg v1.1.0 test/resources/test5.lot (MIT). -->
-		<Content Include="Assets\animation.lot">
+		<!--
+			SVGs, test.jpg, rawimage_200x300.raw: thorvg/thorvg.example res/ (MIT).
+			PublicSans-Regular.ttf: US Web Design System, SIL OFL 1.1.
+			NotoSansCJK.ttf, NotoSansKR.ttf: Noto subsets, SIL OFL 1.1.
+			See Assets/ATTRIBUTION.txt.
+		-->
+		<Content Include="Assets\**\*">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>

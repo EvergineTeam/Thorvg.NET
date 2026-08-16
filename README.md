@@ -81,12 +81,17 @@ the header the bindings were generated from.
 
 ### Demo
 
-`LowLevelDemo/` drives the binding the way an application would: ThorVG rasterises an animated
-vector scene — a breathing radial gradient, a ring of rotating petals, a star built from raw path
-commands, a dashed stroked arc and a looping Lottie loaded from memory — into a CPU buffer every
-frame, and the [Evergine](https://evergine.com/) low-level graphics API uploads that buffer to a
-texture and presents it with a fullscreen triangle. The rasteriser is CPU-only, so no GPU features
-beyond a textured triangle are involved.
+`LowLevelDemo/` reproduces the twelve example tiles from ThorVG's README — anti-aliased shapes,
+gradient filling, stroking, path-clipping, SVG, masking, blending, texturing, text, Gaussian
+blur, drop shadow and color replacement — each one a direct port of the matching
+[thorvg.example](https://github.com/thorvg/thorvg.example) source to the C API. The text example
+also checks that non-Latin UTF-8 survives the trip, in Chinese, Japanese, Korean, Greek and
+Cyrillic.
+
+Pick the example the Evergine way: `LowLevelDemo/Program.cs` is a selector where exactly one
+`Runner.Run<...>()` line is uncommented. ThorVG rasterises into a CPU buffer and the
+[Evergine](https://evergine.com/) low-level graphics API uploads that buffer to a texture and
+presents it with a fullscreen triangle.
 
 ```bash
 dotnet run --project LowLevelDemo/LowLevelDemo.csproj
