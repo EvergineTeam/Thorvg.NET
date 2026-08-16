@@ -79,6 +79,19 @@ unsafe
 `Test/Program.cs` is a runnable version of the above that also checks the native library against
 the header the bindings were generated from.
 
+### Demo
+
+`LowLevelDemo/` drives the binding the way an application would: ThorVG rasterises an animated
+vector scene — a breathing radial gradient, a ring of rotating petals, a star built from raw path
+commands, a dashed stroked arc and a looping Lottie loaded from memory — into a CPU buffer every
+frame, and the [Evergine](https://evergine.com/) low-level graphics API uploads that buffer to a
+texture and presents it with a fullscreen triangle. The rasteriser is CPU-only, so no GPU features
+beyond a textured triangle are involved.
+
+```bash
+dotnet run --project LowLevelDemo/LowLevelDemo.csproj
+```
+
 ### Strings and buffers
 
 `const char*` arguments — paths, mimetypes, names — are marshalled as UTF-8. The two payload

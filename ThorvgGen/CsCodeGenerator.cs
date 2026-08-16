@@ -114,6 +114,29 @@ namespace ThorvgGen
 				file.WriteLine($"\t\tpublic const {csType} {name} = {csValue};");
 			}
 
+			// Anonymous enums are standalone constants, not types — thorvg_capi.h declares the
+			// path commands as `typedef uint8_t Tvg_Path_Command;` followed by a nameless enum of
+			// its values, so the typedef maps to byte and the values would otherwise vanish from
+			// the binding entirely.
+			foreach (var @enum in compilation.Enums)
+			{
+				if (!IsThorVGElement(@enum) || !@enum.IsAnonymous)
+				{
+					continue;
+				}
+
+				foreach (var item in @enum.Items)
+				{
+					var name = Helpers.EscapeReservedKeyword(Helpers.StripPrefix(item.Name));
+					if (!emitted.Add(name))
+					{
+						continue;
+					}
+
+					file.WriteLine($"\t\tpublic const int {name} = {item.Value};");
+				}
+			}
+
 			file.WriteLine("\t}");
 			CloseFile(file);
 		}
