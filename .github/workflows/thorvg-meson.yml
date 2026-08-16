@@ -5,6 +5,10 @@
 # binding that downloads official libraries, this repository has to compile its own, and the
 # managed layer and the libraries must come from the same tag or the P/Invokes describe one
 # revision while the binary is another.
+#
+# Desktop and Android ship shared libraries under runtimes/<rid>/native/, which .NET probes by
+# RID. iOS has no dynamic loader for third-party code, so it ships a static archive that the
+# consumer's build links in — see buildTransitive/Evergine.Bindings.ThorVG.targets.
 
 name: Build ThorVG natives
 
@@ -24,10 +28,32 @@ on:
         type: string
         default: 'v1.1.0'
       only-rid:
-        description: 'Build a single RID (e.g. linux-arm64). Empty builds all four.'
+        description: 'Build a single RID (e.g. android-arm64). Empty builds all of them.'
         required: false
         type: string
         default: ''
+
+env:
+  # Shared by every leg. -Dbindings=capi is the one that matters: it is OFF by default, and
+  # without it the library builds perfectly and exports not one tvg_* symbol.
+  # -Dstatic=true does NOT mean static linkage in ThorVG — it selects the bundled png/jpg/webp
+  # decoders over system ones, which is what keeps these libraries free of external deps.
+  # -Dextra drops openmp, which would otherwise pull a libomp/vcomp runtime the NuGet does not
+  # ship. Linkage is chosen separately, with --default-library.
+  #
+  # No -Dtools here. Its default is already the empty array, and passing -Dtools='' through an
+  # environment variable hands meson the two quote characters as part of the value, which it
+  # rejects as not being one of the allowed choices.
+  TVG_COMMON: >-
+    --buildtype=release
+    -Dbindings=capi
+    -Dengines=cpu
+    -Dloaders=all
+    -Dsavers=all
+    -Dstatic=true
+    -Dextra=lottie_exp
+    -Dlog=false
+    -Dtests=false
 
 jobs:
   build:
@@ -37,16 +63,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04
-            rid: linux-x64
+          - { os: ubuntu-24.04,     rid: linux-x64,             kind: shared }
           # A native ARM runner rather than a cross toolchain: meson cross-compilation needs a
           # cross file, and ThorVG ships none for linux-arm64.
-          - os: ubuntu-24.04-arm
-            rid: linux-arm64
-          - os: windows-latest
-            rid: win-x64
-          - os: macos-latest
-            rid: osx-arm64
+          - { os: ubuntu-24.04-arm, rid: linux-arm64,           kind: shared }
+          - { os: windows-latest,   rid: win-x64,               kind: shared }
+          - { os: windows-latest,   rid: win-arm64,             kind: shared, msvc-arch: amd64_arm64, cross: ThorvgGen/cross/win_arm64.txt }
+          - { os: macos-latest,     rid: osx-arm64,             kind: shared }
+          - { os: ubuntu-24.04,     rid: android-arm64,         kind: shared, ndk-cross: android_aarch64.txt }
+          - { os: ubuntu-24.04,     rid: android-x64,           kind: shared, ndk-cross: android_x86_64.txt }
+          # Static: iOS has no dynamic loader for third-party libraries, so the archive is
+          # linked into the consumer's application instead of loaded at run time.
+          - { os: macos-latest,     rid: ios-arm64,             kind: static, ios-cross: ios_arm64.txt }
+          - { os: macos-latest,     rid: iossimulator-arm64,    kind: static, ios-cross: ios_simulator_arm64.txt }
 
     steps:
       - name: Checkout ThorVG
@@ -55,6 +84,13 @@ jobs:
         with:
           repository: thorvg/thorvg
           ref: ${{ inputs.ref || 'v1.1.0' }}
+
+      # The win-arm64 cross file lives in this repository, not upstream.
+      - name: Checkout this repository's cross files
+        if: (inputs.only-rid == '' || inputs.only-rid == matrix.rid) && matrix.cross != ''
+        uses: actions/checkout@v5
+        with:
+          path: .binding
 
       - name: Setup Python
         if: inputs.only-rid == '' || inputs.only-rid == matrix.rid
@@ -66,43 +102,63 @@ jobs:
         if: inputs.only-rid == '' || inputs.only-rid == matrix.rid
         run: pip install meson ninja
 
-      # ThorVG's own Windows CI does this; meson needs cl.exe on PATH.
+      # ThorVG's own Windows CI does this; meson needs cl.exe on PATH. For win-arm64 the
+      # amd64_arm64 host/target pair cross-compiles from the x64 runner.
       - name: Setup MSVC
         if: (inputs.only-rid == '' || inputs.only-rid == matrix.rid) && startsWith(matrix.rid, 'win-')
         uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.msvc-arch || 'x64' }}
 
-      # -Dbindings=capi is the flag that matters: it is OFF by default, and without it the
-      # library builds perfectly and exports not one tvg_* symbol.
-      # -Dextra drops openmp, which would otherwise pull a libomp/vcomp runtime alongside the
-      # library that the NuGet does not ship.
-      #
-      # Split by platform because bash on the Windows runner is Git bash, and it puts
-      # C:\Program Files\Git\usr\bin ahead of the MSVC toolchain — meson then finds GNU link.exe
-      # instead of MSVC's and refuses to configure.
+      - name: Setup Android NDK
+        if: (inputs.only-rid == '' || inputs.only-rid == matrix.rid) && startsWith(matrix.rid, 'android-')
+        id: ndk
+        uses: nttld/setup-ndk@v1.5.0
+        with:
+          ndk-version: r27c
+          local-cache: true
+
+      # ThorVG's Android cross files are templates: the literal tokens NDK, HOST_TAG and API
+      # have to be substituted before meson can read them. Upstream's own CI does exactly this.
+      - name: Prepare the Android cross file
+        if: (inputs.only-rid == '' || inputs.only-rid == matrix.rid) && startsWith(matrix.rid, 'android-')
+        shell: bash
+        env:
+          NDK: ${{ steps.ndk.outputs.ndk-path }}
+          API: '24'
+        run: |
+          set -euo pipefail
+          sed -e "s|NDK|$NDK|g" -e "s|HOST_TAG|linux-x86_64|g" -e "s|API|$API|g" \
+            "./cross/${{ matrix.ndk-cross }}" > /tmp/android_cross.txt
+          cat /tmp/android_cross.txt
+
       - name: Configure and build (Unix)
         if: (inputs.only-rid == '' || inputs.only-rid == matrix.rid) && !startsWith(matrix.rid, 'win-')
         shell: bash
         run: |
           set -euo pipefail
-          meson setup build \
-            --buildtype=release \
-            -Ddefault_library=shared \
-            -Dbindings=capi \
-            -Dengines=cpu \
-            -Dloaders=all \
-            -Dsavers=all \
-            -Dextra=lottie_exp \
-            -Dstatic=false \
-            -Dlog=false \
-            -Dtools='' \
-            -Dtests=false
+          cross=""
+          case "${{ matrix.rid }}" in
+            android-*) cross="--cross-file /tmp/android_cross.txt" ;;
+            ios*)      cross="--cross-file ./cross/${{ matrix.ios-cross }}" ;;
+          esac
+
+          # Android has no pthread — it is inside Bionic's libc — and upstream disables threads
+          # for it rather than have meson look for a library that is not there.
+          extra=""
+          case "${{ matrix.rid }}" in
+            android-*) extra="-Dthreads=false" ;;
+          esac
+
+          meson setup build $TVG_COMMON --default-library=${{ matrix.kind }} $cross $extra
           meson compile -C build
 
       - name: Configure and build (Windows)
         if: (inputs.only-rid == '' || inputs.only-rid == matrix.rid) && startsWith(matrix.rid, 'win-')
         shell: pwsh
         run: |
-          meson setup build --buildtype=release -Ddefault_library=shared -Dbindings=capi -Dengines=cpu -Dloaders=all -Dsavers=all -Dextra=lottie_exp -Dstatic=false -Dlog=false -Dtools='' -Dtests=false
+          $cross = if ('${{ matrix.cross }}') { "--cross-file", ".binding/${{ matrix.cross }}" } else { @() }
+          meson setup build $env:TVG_COMMON.Split() --default-library=${{ matrix.kind }} @cross
           if ($LASTEXITCODE -ne 0) { exit 1 }
           meson compile -C build
           if ($LASTEXITCODE -ne 0) { exit 1 }
@@ -111,6 +167,9 @@ jobs:
       # libthorvg-1.1.dylib — and on Unix the plain name is a symlink, which does not survive
       # NuGet packaging. Copy the real file under a stable name so DllImport("thorvg") keeps
       # resolving when ThorVG goes to 2.x.
+      #
+      # The iOS archives keep a libthorvg.a name on purpose: they resolve through __Internal
+      # inside the executable, so the file name is irrelevant there.
       - name: Stage into the runtimes layout
         if: inputs.only-rid == '' || inputs.only-rid == matrix.rid
         shell: bash
@@ -118,19 +177,27 @@ jobs:
           set -euo pipefail
           native="out/Evergine.Bindings.ThorVG/runtimes/${{ matrix.rid }}/native"
           mkdir -p "$native"
+
+          # -type f is load-bearing: meson puts each target's objects in a sibling directory
+          # named after it, so `libthorvg-1.so.p` matches the same glob as the library and
+          # `find -print -quit` takes whichever the traversal reaches first. The Linux legs were
+          # passing on that ordering rather than on being right; Android was not.
           case "${{ matrix.rid }}" in
             win-*)
-              cp "$(find build -name 'thorvg*.dll' -print -quit)" "$native/thorvg.dll" ;;
-            linux-*)
-              cp "$(readlink -f "$(find build -name 'libthorvg*.so*' -print -quit)")" "$native/libthorvg.so" ;;
+              cp "$(find build -type f -name 'thorvg*.dll' -print -quit)" "$native/thorvg.dll" ;;
+            linux-*|android-*)
+              cp "$(readlink -f "$(find build -type f -name 'libthorvg*.so*' -print -quit)")" "$native/libthorvg.so" ;;
             osx-*)
-              cp "$(readlink -f "$(find build -name 'libthorvg*.dylib' -print -quit)")" "$native/libthorvg.dylib" ;;
+              cp "$(readlink -f "$(find build -type f -name 'libthorvg*.dylib' -print -quit)")" "$native/libthorvg.dylib" ;;
+            ios*)
+              cp "$(find build -type f -name 'libthorvg*.a' -print -quit)" "$native/libthorvg.a" ;;
           esac
           find out -type f -exec ls -l {} \;
 
-      # Two ways this build fails without failing: -Dstatic or a missing -Ddefault_library=shared
-      # yields only an archive, and a missing -Dbindings=capi yields a library with no C API at
-      # all. Both would upload happily and be committed as a working platform.
+      # Three ways this build fails without failing: the wrong --default-library yields the
+      # other kind of artifact, a missing -Dbindings=capi yields a library with no C API at all,
+      # and a cross file with the wrong cpu_family silently builds for the host. All three would
+      # upload happily and be committed as a working platform.
       - name: Verify the library is real and exports the C API
         if: inputs.only-rid == '' || inputs.only-rid == matrix.rid
         shell: bash
@@ -145,16 +212,18 @@ jobs:
           # under `set -o pipefail`, grep -q exits at the first match, nm dies of SIGPIPE, and
           # the pipeline reports failure precisely when the symbol WAS found.
           case "${{ matrix.rid }}" in
-            linux-*) symbols=$(nm -D --defined-only "$lib" || true) ;;
-            osx-*)   symbols=$(nm -gU "$lib" || true) ;;
+            linux-*|android-*) symbols=$(nm -D --defined-only "$lib" || true) ;;
+            osx-*)             symbols=$(nm -gU "$lib" || true) ;;
+            # A static archive has no dynamic table; read the members' symbols instead.
+            ios*)              symbols=$(nm -g "$lib" 2>/dev/null || true) ;;
             # No dumpbin under bash and no strings on the Windows image; an export name is
             # plain ASCII in the export table, so reading the file as text finds it.
-            win-*)   symbols=$(grep -a -o 'tvg_engine_init' "$lib" || true) ;;
+            win-*)             symbols=$(grep -a -o 'tvg_engine_init' "$lib" || true) ;;
           esac
 
           case "$symbols" in
-            *tvg_engine_init*) echo "tvg_engine_init is exported." ;;
-            *) echo "::error::tvg_engine_init is not exported by $lib -- was -Dbindings=capi lost?"; exit 1 ;;
+            *tvg_engine_init*) echo "tvg_engine_init is present." ;;
+            *) echo "::error::tvg_engine_init is missing from $lib -- was -Dbindings=capi lost?"; exit 1 ;;
           esac
 
       - name: Upload

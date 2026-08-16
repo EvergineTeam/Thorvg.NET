@@ -70,3 +70,37 @@ generator:
 # WebGPU canvas functions unconditionally, so they are part of the generated surface and
 # return TVG_RESULT_NOT_SUPPORTED at run time. Enabling those engines is a build-flag change
 # in thorvg-meson.yml and does not alter the managed API.
+#
+# WebGPU is deliberately off. `dependency('wgpu_native')` in ThorVG's meson is an unconditional
+# pkg-config lookup, nothing is vendored, and upstream's own CI satisfies it by downloading a
+# hand-written .pc from a GitHub user-attachment zip — an unstable URL, on Linux only. Turning
+# it on would also mean shipping wgpu-native's binaries beside ThorVG's. Upstream marks
+# WgCanvas "not fully supported yet".
+#
+# NOTE — iOS ships static archives, not shared libraries: there is no dynamic loader for
+# third-party code there. runtimes/ios-arm64 and runtimes/iossimulator-arm64 carry libthorvg.a,
+# and buildTransitive/Evergine.Bindings.ThorVG.targets is what makes a consumer's build link
+# them. Without that file the archives are inert weight, which is the state KTX.NET is in.
+# The archives keep the lib prefix on purpose — iOS resolves them through __Internal inside the
+# executable, so the file name does not matter there, unlike browser-wasm where the module name
+# comes from the file name.
+#
+# NOT VERIFIED: no iOS application has been linked against this package. ThorVG bundles its own
+# png/jpg/webp decoders under -Dstatic=true, so -force_load could surface duplicate symbols in
+# an app that also links libpng, libjpeg or libwebp. It would appear as a link error.
+#
+# NOTE — the package stays on a single net10.0 framework even though it carries iOS archives.
+# An iOS consumer resolves lib/net10.0 (net10.0-ios derives from it) and buildTransitive/ is
+# imported whatever the consumer targets. ImGui.Net does the same. Adding a net10.0-ios
+# framework would force the CI onto a Windows runner with workload restore and would hand the
+# iOS SDK a Content item group to embed — JoltPhysics ships that mistake today, at 72 MB
+# against 119 KB for its plain assembly.
+#
+# NOTE — win-arm64 uses ThorvgGen/cross/win_arm64.txt, written here because ThorVG ships cross
+# files for Android and iOS only. cpu_family must be 'aarch64' and not 'arm': ThorVG picks its
+# SIMD variant from that value, and 'arm' selects neon-arm, which appends -mfpu=neon — a flag
+# cl.exe rejects.
+#
+# NOTE — Android's cross files upstream are templates carrying the literal tokens NDK, HOST_TAG
+# and API, which have to be substituted before meson can read them. There is no cross file for
+# 32-bit ARM, hence android-arm64 and android-x64 only.

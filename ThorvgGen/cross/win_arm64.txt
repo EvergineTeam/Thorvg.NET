@@ -1,0 +1,22 @@
+# Meson cross file for Windows on ARM64 with MSVC. ThorVG ships cross files for Android and
+# iOS but none for this target, so it lives here rather than upstream.
+#
+# meson setup must run from an environment where the ARM64 toolchain is on PATH/LIB/INCLUDE —
+# ilammy/msvc-dev-cmd with `arch: amd64_arm64` does that, cross-compiling from an x64 host.
+#
+# cpu_family is 'aarch64' and not 'arm', which matters: ThorVG's root meson.build picks its SIMD
+# variant from this, and 'arm' selects neon-arm, which appends -mfpu=neon — a GCC/clang flag
+# that cl.exe rejects outright. 'aarch64' selects neon-aarch, which adds no flag at all.
+
+[binaries]
+c = 'cl'
+cpp = 'cl'
+ar = 'lib'
+link = 'link'
+windres = 'rc'
+
+[host_machine]
+system = 'windows'
+cpu_family = 'aarch64'
+cpu = 'aarch64'
+endian = 'little'

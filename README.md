@@ -32,10 +32,19 @@ can rasterise vector content directly, with no marshalling layer in between. See
 
 ## Supported Platforms
 
-- [x] Windows x64
+- [x] Windows x64, ARM64
 - [x] Linux x64, ARM64
 - [x] MacOS ARM64
-- [ ] Windows ARM64, MacOS x64 — not built yet; each is one more leg in the native build
+- [x] Android ARM64, x64
+- [x] iOS ARM64 and the ARM64 simulator — static archives, linked by `buildTransitive/`
+- [ ] MacOS x64, browser-wasm — not built yet; each is one more leg in the native build
+
+Android needs nothing special: the `.so` files sit under `runtimes/android-*/native/` and .NET
+probes them by RID. iOS has no dynamic loader for third-party code, so it ships a static archive
+and `buildTransitive/Evergine.Bindings.ThorVG.targets` tells the consuming build to link it.
+**The iOS link has not been verified against a real application** — ThorVG bundles its own PNG,
+JPEG and WebP decoders, so `-force_load` could surface duplicate symbols in an app that also
+links those libraries.
 
 ## Usage
 

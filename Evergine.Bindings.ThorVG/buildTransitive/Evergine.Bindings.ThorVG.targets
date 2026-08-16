@@ -1,0 +1,52 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!--
+    iOS links native code into the application rather than loading it, so an archive sitting
+    under runtimes/ios-arm64/native/ is inert weight until something tells the build to link
+    it. That is what this file does; without it the package would carry archives no consumer
+    could ever use, which is the state KTX.NET is in today.
+
+    The settings are taken from Evergine.Bindings.JoltPhysics, which measured them against a
+    real link. They are reproduced rather than reinvented:
+
+    _FrameworkNativeReference, injected before _ComputeLinkNativeExecutableInputs, is the shape
+    that went green there. A public NativeReference item may well work too; that was never
+    validated, and this file is not the place to find out.
+
+    ForceLoad, because the linker takes only the archive members something references, and every
+    entry point here is reached from managed code. Without it the application builds and defines
+    none of the tvg_ symbols.
+
+    SmartLink, because iOS links with -dead_strip: ForceLoad pulls every member in and the strip
+    takes back out whatever nothing references. SmartLink has the SDK read the assembly's
+    P/Invokes and pass -u for each, naming them as roots the strip must keep.
+
+    Which runtime identifier to use is decided by $(RuntimeIdentifier), because an iOS build may
+    target a device or the simulator and those are separate architectures — there is no fat
+    archive here.
+
+    NOT VERIFIED: no iOS application has been linked against this package. ThorVG bundles its
+    own png/jpg/webp decoders under -Dstatic=true, so if a consuming application also links
+    libpng, libjpeg or libwebp, -force_load can surface duplicate symbols. That is the one place
+    this precedent may fail to carry over, and it would appear as a link error rather than
+    anything subtle.
+  -->
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+    <_ThorVGIosRid Condition="'$(_ThorVGIosRid)' == ''">$(RuntimeIdentifier)</_ThorVGIosRid>
+    <_ThorVGIosRid Condition="'$(_ThorVGIosRid)' == ''">ios-arm64</_ThorVGIosRid>
+    <_ThorVGIosArchive>$(MSBuildThisFileDirectory)../runtimes/$(_ThorVGIosRid)/native/libthorvg.a</_ThorVGIosArchive>
+  </PropertyGroup>
+
+  <Target Name="EvergineThorVGAddIosNativeReference"
+          BeforeTargets="_ComputeLinkNativeExecutableInputs"
+          Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And Exists('$(_ThorVGIosArchive)')">
+    <ItemGroup>
+      <_FrameworkNativeReference Include="$(_ThorVGIosArchive)">
+        <Kind>Static</Kind>
+        <ForceLoad>true</ForceLoad>
+        <SmartLink>true</SmartLink>
+      </_FrameworkNativeReference>
+    </ItemGroup>
+  </Target>
+
+</Project>
