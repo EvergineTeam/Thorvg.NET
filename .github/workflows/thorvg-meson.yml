@@ -145,9 +145,14 @@ jobs:
 
           # Android has no pthread — it is inside Bionic's libc — and upstream disables threads
           # for it rather than have meson look for a library that is not there.
+          #
+          # Google Play requires 64-bit native libraries to be aligned to a 16 KB page size
+          # from 1 February 2027; the NDK's default linker output is 4 KB-aligned. Forcing the
+          # max page size at link time keeps these libraries loadable on 16 KB page devices
+          # without needing NDK r28+.
           extra=""
           case "${{ matrix.rid }}" in
-            android-*) extra="-Dthreads=false" ;;
+            android-*) extra="-Dthreads=false -Dc_link_args=-Wl,-z,max-page-size=16384 -Dcpp_link_args=-Wl,-z,max-page-size=16384" ;;
           esac
 
           meson setup build $TVG_COMMON --default-library=${{ matrix.kind }} $cross $extra
