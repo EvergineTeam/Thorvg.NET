@@ -149,10 +149,11 @@ jobs:
           # Google Play requires 64-bit native libraries to be aligned to a 16 KB page size
           # from 1 February 2027; the NDK's default linker output is 4 KB-aligned. Forcing the
           # max page size at link time keeps these libraries loadable on 16 KB page devices
-          # without needing NDK r28+.
+          # without needing NDK r28+. Only cpp_link_args: ThorVG is project('thorvg', 'cpp'),
+          # so meson takes c_link_args as an option for a language nobody enabled and drops it.
           extra=""
           case "${{ matrix.rid }}" in
-            android-*) extra="-Dthreads=false -Dc_link_args=-Wl,-z,max-page-size=16384 -Dcpp_link_args=-Wl,-z,max-page-size=16384" ;;
+            android-*) extra="-Dthreads=false -Dcpp_link_args=-Wl,-z,max-page-size=16384" ;;
           esac
 
           meson setup build $TVG_COMMON --default-library=${{ matrix.kind }} $cross $extra
